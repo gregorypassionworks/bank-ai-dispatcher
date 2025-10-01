@@ -1,6 +1,9 @@
 ThisBuild / scalaVersion := "2.13.12"
 
 libraryDependencies ++= Seq(
+  "com.softwaremill.sttp.client3" %% "core" % "3.9.0",
+  "com.softwaremill.sttp.client3" %% "circe" % "3.9.0",
+  "com.softwaremill.sttp.client3" %% "async-http-client-backend-cats" % "3.9.0",
   "com.typesafe.akka" %% "akka-actor-typed" % "2.8.7",
   "com.typesafe.akka" %% "akka-stream" % "2.8.7",
   "com.typesafe.akka" %% "akka-http" % "10.5.1",
