@@ -1,34 +1,44 @@
-// TradeDispatcher.scala
 package com.example.bank.dispatcher
 
-import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.typed.scaladsl.Behaviors
+import akka.actor.typed.{ActorRef, Behavior}
+import cats.effect.IO
+import cats.effect.std.Semaphore
+import cats.effect.unsafe.IORuntime
 import com.example.bank.domain.{ProcessResult, TradeRequest}
-import scala.collection.mutable
+
+import scala.concurrent.ExecutionContext
 
 object TradeDispatcher {
+
   def apply(maxConcurrency: Int): Behavior[DispatcherCommand] =
     Behaviors.setup { ctx =>
-      val processors = mutable.Map.empty[String, ActorRef[(TradeRequest, ActorRef[ProcessResult])]]
-      val active = mutable.Set.empty[String]
-      val queue = mutable.Queue.empty[(TradeRequest, ActorRef[ProcessResult])]
+      implicit val ec: ExecutionContext = ctx.executionContext
+      implicit val rt: IORuntime = IORuntime.global
 
-      def tryDispatch(): Unit = {
-        while (active.size < maxConcurrency && queue.nonEmpty) {
-          val (t, replyTo) = queue.dequeue()
-          active += t.id
-          val child = processors.getOrElseUpdate(t.id, ctx.spawn(TradeProcessor(), s"proc-${t.id}"))
-          child ! (t, replyTo) // pass replyTo directly so child can reply to ask
-        }
-      }
+      // create a Semaphore in a simple, blocking way on actor startup
+      // for a demo it's OK to create a semaphore synchronously; in production consider Resource wiring
+      val semaphore = Semaphore[IO](maxConcurrency).unsafeRunSync()
+
+      def runIO(io: IO[Unit]): Unit =
+        io.unsafeRunAndForget()
 
       Behaviors.receiveMessage {
         case DispatchTrade(trade, replyTo) =>
-          queue.enqueue((trade, replyTo))
-          tryDispatch()
+          // create IO that acquires permit, runs scorer, replies to replyTo and releases permit automatically
+          val task: IO[Unit] = semaphore.permit.use { _ =>
+            for {
+              explain <- com.example.bank.ai.RiskScorer.score(trade)
+            } yield {
+              val res = ProcessResult(trade.id, trade.symbol, trade.quantity * trade.price, explain.score, explain.explanation)
+              replyTo ! res
+            }
+          }
+          runIO(task) // start fiber; no blocking actor thread
           Behaviors.same
 
-        case Shutdown => Behaviors.stopped
+        case Shutdown =>
+          Behaviors.stopped
       }
     }
 }
