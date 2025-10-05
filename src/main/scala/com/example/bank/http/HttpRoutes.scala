@@ -12,10 +12,11 @@ import akka.actor.typed.scaladsl.AskPattern._
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 import io.circe.generic.auto._
 import scala.concurrent.Future
+import scala.concurrent.ExecutionContext
 
 class HttpRoutes(dispatcher: ActorRef[DispatcherCommand])(implicit system: ActorSystem[_]) {
   implicit val timeout: Timeout = 3.seconds
-  implicit val ec = system.executionContext
+  implicit val ec: ExecutionContext = system.executionContext
 
   val routes: Route =
     pathPrefix("api") {
