@@ -1,5 +1,8 @@
 ThisBuild / scalaVersion := "2.13.12"
 
+// keep akka version in one place so test deps can reference it
+val akkaVersion = "2.8.7"
+
 libraryDependencies ++= Seq(
   "com.softwaremill.sttp.client3" %% "core" % "3.9.0",
   "com.softwaremill.sttp.client3" %% "circe" % "3.9.0",
@@ -14,4 +17,11 @@ libraryDependencies ++= Seq(
   "org.typelevel" %% "cats-core" % "2.10.0",
   "org.typelevel" %% "cats-effect" % "3.5.2",
   "ch.qos.logback" % "logback-classic" % "1.5.19"
+)
+
+// Test dependencies
+libraryDependencies ++= Seq(
+  "org.scalatest" %% "scalatest" % "3.2.17" % Test,
+  "com.typesafe.akka" %% "akka-actor-testkit-typed" % akkaVersion % Test,
+  "com.typesafe.akka" %% "akka-http-testkit" % "10.5.1" % Test
 )
